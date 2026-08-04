@@ -3,7 +3,7 @@
     {
       "v8_version": "12.4.254.21",
       "node_version": "v22.21.1",
-      "build_args": "v8_enable_pointer_compression=false"
+      "build_args": "v8_enable_pointer_compression=true v8_enable_sandbox=true"
     }
   ]
 }

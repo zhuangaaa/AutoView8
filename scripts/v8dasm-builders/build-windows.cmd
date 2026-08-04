@@ -149,7 +149,9 @@ dir out.gn\x64.release\obj\v8_monolith.lib
 dir out.gn\x64.release\obj\v8_libbase.lib
 dir out.gn\x64.release\obj\v8_libplatform.lib
 
+REM Must match V8 GN flags used for this Node bytecode build
 "%CLANG_CL%" /nologo /c /O2 /std:c++20 /EHsc /MT /DUNICODE /D_UNICODE ^
+  /DV8_COMPRESS_POINTERS /DV8_ENABLE_SANDBOX /DV8_31BIT_SMIS_ON_64BIT_ARCH ^
   /I. /Iinclude ^
   /Fo"v8dasm.obj" ^
   "%DASM_SOURCE%"

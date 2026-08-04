@@ -61,11 +61,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}/v8
-          key: v8-source-${{ matrix.version.v8 }}-windows-ws
+          # bump key when pointer-compression / sandbox flags change
+          key: v8-source-${{ matrix.version.v8 }}-windows-ptrcomp-v2
           restore-keys: |
-            v8-source-${{ matrix.version.v8 }}-windows-ws
-            v8-source-${{ matrix.version.v8 }}-windows
-            v8-source-${{ matrix.version.v8 }}-
+            v8-source-${{ matrix.version.v8 }}-windows-ptrcomp-v2
 
       - name: Build v8dasm
         shell: cmd

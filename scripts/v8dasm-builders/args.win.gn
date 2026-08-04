@@ -11,7 +11,9 @@ v8_use_external_startup_data = false
 dcheck_always_on = false
 symbol_level = 0
 is_clang = true
-v8_enable_pointer_compression = false
+# Node.js 22 x64 bytecode is built WITH pointer compression (+ sandbox)
+v8_enable_pointer_compression = true
+v8_enable_sandbox = true
 treat_warnings_as_errors = false
 extra_cflags = [
   "-D_SILENCE_CXX20_OLD_SHARED_PTR_ATOMIC_SUPPORT_DEPRECATION_WARNING",

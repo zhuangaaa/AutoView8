@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "include/v8.h"
 #include "include/libplatform/libplatform.h"
@@ -20,19 +21,24 @@ ScriptOrigin CreateScriptOrigin(Args&&... args) {
 }
 
 static void loadBytecode(uint8_t* bytecodeBuffer, int length) {
+  std::cerr << "[v8dasm] cache bytes=" << length << std::endl;
+
   // Load code into code cache.
   ScriptCompiler::CachedData* cached_data =
       new ScriptCompiler::CachedData(bytecodeBuffer, length);
 
-  // Create dummy source.
+  // Create dummy source (must exist; hash checks are patched out in V8).
   ScriptOrigin origin = CreateScriptOrigin(String::NewFromUtf8Literal(isolate, "code.jsc"));
-
   ScriptCompiler::Source source(String::NewFromUtf8Literal(isolate, "\"ಠ_ಠ\""),
                                 origin, cached_data);
 
-  // Compile code from code cache to print disassembly.
+  // Compile code from code cache to print disassembly (patched V8 dumps SFI).
   MaybeLocal<UnboundScript> script = ScriptCompiler::CompileUnboundScript(
       isolate, &source, ScriptCompiler::kConsumeCodeCache);
+
+  std::cerr << "[v8dasm] rejected=" << (cached_data->rejected() ? "yes" : "no")
+            << " unbound=" << (script.IsEmpty() ? "empty" : "ok") << std::endl;
+  std::cerr.flush();
 }
 
 static void readAllBytes(const std::string& file, std::vector<char>& buffer) {
@@ -49,6 +55,11 @@ static void readAllBytes(const std::string& file, std::vector<char>& buffer) {
 }
 
 int main(int argc, char* argv[]) {
+  if (argc < 2) {
+    std::cerr << "Usage: v8dasm <file.jsc>" << std::endl;
+    return 2;
+  }
+
   V8::SetFlagsFromString("--no-lazy --no-flush-bytecode");
 
   V8::InitializeICU();
@@ -68,5 +79,11 @@ int main(int argc, char* argv[]) {
 
   std::vector<char> data;
   readAllBytes(argv[1], data);
-  loadBytecode((uint8_t*)data.data(), data.size());
+  if (data.empty()) {
+    std::cerr << "[v8dasm] failed to read input: " << argv[1] << std::endl;
+    return 3;
+  }
+  loadBytecode(reinterpret_cast<uint8_t*>(data.data()),
+               static_cast<int>(data.size()));
+  return 0;
 }
