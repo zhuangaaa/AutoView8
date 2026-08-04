@@ -162,7 +162,7 @@ REM Monolithic build: only v8_monolith.lib is required/reliable
 "%LLD_LINK%" /NOLOGO /SUBSYSTEM:CONSOLE /OUT:"%OUTPUT_NAME%" ^
   v8dasm.obj ^
   out.gn\x64.release\obj\v8_monolith.lib ^
-  winmm.lib dbghelp.lib advapi32.lib user32.lib shell32.lib ole32.lib ws2_32.lib crtdbg.lib
+  winmm.lib dbghelp.lib advapi32.lib user32.lib shell32.lib ole32.lib ws2_32.lib
 if errorlevel 1 (
   echo ERROR: lld-link of v8dasm failed
   exit /b 1
