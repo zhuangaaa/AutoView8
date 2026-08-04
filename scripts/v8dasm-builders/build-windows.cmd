@@ -122,39 +122,49 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM 编译 v8dasm（Windows 必须用 clang-cl + MSVC 风格链接，不能用 clang++ -l）
+REM 编译 v8dasm：先 clang-cl 出 obj，再用 lld-link（避免 MSVC link.exe 的 LNK1107）
 echo =====[ Compiling v8dasm ]=====
 set DASM_SOURCE=%WORKSPACE_DIR%\Disassembler\v8dasm.cpp
 set OUTPUT_NAME=v8dasm-%V8_VERSION%.exe
-set CLANG_CL=%V8_DIR%\third_party\llvm-build\Release+Asserts\bin\clang-cl.exe
+set LLVM_BIN=%V8_DIR%\third_party\llvm-build\Release+Asserts\bin
+set CLANG_CL=%LLVM_BIN%\clang-cl.exe
+set LLD_LINK=%LLVM_BIN%\lld-link.exe
 
 if not exist "%CLANG_CL%" (
-  where clang-cl >nul 2>&1
-  if errorlevel 1 (
-    echo ERROR: clang-cl not found
-    exit /b 1
-  )
-  set CLANG_CL=clang-cl
+  echo ERROR: clang-cl not found at %CLANG_CL%
+  exit /b 1
 )
-
+if not exist "%LLD_LINK%" (
+  echo ERROR: lld-link not found at %LLD_LINK%
+  exit /b 1
+)
 if not exist "out.gn\x64.release\obj\v8_monolith.lib" (
   echo ERROR: missing out.gn\x64.release\obj\v8_monolith.lib
   exit /b 1
 )
 
 echo Using compiler: %CLANG_CL%
-"%CLANG_CL%" /nologo /O2 /std:c++20 /EHsc /MT /DUNICODE /D_UNICODE ^
+echo Using linker:   %LLD_LINK%
+dir out.gn\x64.release\obj\v8_monolith.lib
+dir out.gn\x64.release\obj\v8_libbase.lib
+dir out.gn\x64.release\obj\v8_libplatform.lib
+
+"%CLANG_CL%" /nologo /c /O2 /std:c++20 /EHsc /MT /DUNICODE /D_UNICODE ^
   /I. /Iinclude ^
-  /Fe"%OUTPUT_NAME%" ^
-  "%DASM_SOURCE%" ^
-  /link /NOLOGO /SUBSYSTEM:CONSOLE ^
-  /LIBPATH:out.gn\x64.release\obj ^
-  v8_monolith.lib ^
-  v8_libbase.lib ^
-  v8_libplatform.lib ^
-  winmm.lib dbghelp.lib advapi32.lib user32.lib shell32.lib ole32.lib
+  /Fo"v8dasm.obj" ^
+  "%DASM_SOURCE%"
 if errorlevel 1 (
-  echo ERROR: clang-cl link of v8dasm failed
+  echo ERROR: clang-cl compile of v8dasm.cpp failed
+  exit /b 1
+)
+
+REM Monolithic build: only v8_monolith.lib is required/reliable
+"%LLD_LINK%" /NOLOGO /SUBSYSTEM:CONSOLE /OUT:"%OUTPUT_NAME%" ^
+  v8dasm.obj ^
+  out.gn\x64.release\obj\v8_monolith.lib ^
+  winmm.lib dbghelp.lib advapi32.lib user32.lib shell32.lib ole32.lib ws2_32.lib crtdbg.lib
+if errorlevel 1 (
+  echo ERROR: lld-link of v8dasm failed
   exit /b 1
 )
 
