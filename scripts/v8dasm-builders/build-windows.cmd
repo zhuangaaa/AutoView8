@@ -95,34 +95,32 @@ echo Patch applied successfully
 if exist "%PATCH_LOG%" type "%PATCH_LOG%"
 
 
-REM 配置构建（写 args.gn，避免 cmd 对 = 号/引号解析翻车）
+REM 配置构建（复制预置 args.gn，避免 cmd/引号问题）
 echo =====[ Configuring V8 Build ]=====
 if not exist out.gn\x64.release mkdir out.gn\x64.release
-
-> out.gn\x64.release\args.gn echo target_os = "win"
->> out.gn\x64.release\args.gn echo target_cpu = "x64"
->> out.gn\x64.release\args.gn echo is_component_build = false
->> out.gn\x64.release\args.gn echo is_debug = false
->> out.gn\x64.release\args.gn echo use_custom_libcxx = false
->> out.gn\x64.release\args.gn echo v8_monolithic = true
->> out.gn\x64.release\args.gn echo v8_static_library = true
->> out.gn\x64.release\args.gn echo v8_enable_disassembler = true
->> out.gn\x64.release\args.gn echo v8_enable_object_print = true
->> out.gn\x64.release\args.gn echo v8_use_external_startup_data = false
->> out.gn\x64.release\args.gn echo dcheck_always_on = false
->> out.gn\x64.release\args.gn echo symbol_level = 0
->> out.gn\x64.release\args.gn echo is_clang = true
->> out.gn\x64.release\args.gn echo v8_enable_pointer_compression = false
+copy /Y "%WORKSPACE_DIR%\scripts\v8dasm-builders\args.win.gn" "out.gn\x64.release\args.gn"
+if errorlevel 1 (
+  echo ERROR: failed to copy args.win.gn
+  exit /b 1
+)
 
 echo --- args.gn ---
 type out.gn\x64.release\args.gn
 echo ---------------
 
 call gn gen out.gn\x64.release
+if errorlevel 1 (
+  echo ERROR: gn gen failed
+  exit /b 1
+)
 
 REM 构建 V8 静态库
 echo =====[ Building V8 Monolith ]=====
 call ninja -C out.gn\x64.release v8_monolith
+if errorlevel 1 (
+  echo ERROR: ninja v8_monolith failed
+  exit /b 1
+)
 
 REM 编译 v8dasm
 echo =====[ Compiling v8dasm ]=====
@@ -132,14 +130,18 @@ set OUTPUT_NAME=v8dasm-%V8_VERSION%.exe
 clang++ "%DASM_SOURCE%" ^
     -std=c++20 ^
     -O2 ^
+    -I. ^
     -Iinclude ^
     -Lout.gn\x64.release\obj ^
     -lv8_libbase ^
     -lv8_libplatform ^
     -lv8_monolith ^
     -o "%OUTPUT_NAME%"
+if errorlevel 1 (
+  echo ERROR: clang++ v8dasm failed
+  exit /b 1
+)
 
-REM 验证编译
 if exist "%OUTPUT_NAME%" (
     echo =====[ Build Successful ]=====
     dir "%OUTPUT_NAME%"
