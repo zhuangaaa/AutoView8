@@ -36,50 +36,6 @@ jobs:
             echo "matrix={\"version\":$VERSIONS}" >> $GITHUB_OUTPUT
           fi
 
-  build-macos-arm:
-    name: macOS ARM64 - V8 ${{ matrix.version.v8 }}
-    runs-on: macos-14
-    needs: prepare
-    strategy:
-      matrix: ${{fromJson(needs.prepare.outputs.matrix)}}
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Python dependencies
-        run: pip3 install setuptools
-
-      - name: Cache Depot Tools
-        uses: actions/cache@v4
-        with:
-          path: ~/depot_tools
-          key: depot-tools-macos-arm-${{ runner.os }}
-
-      - name: Cache V8 Source
-        uses: actions/cache@v4
-        with:
-          path: ~/v8
-          key: v8-source-${{ matrix.version.v8 }}-macos-arm
-          restore-keys: |
-            v8-source-${{ matrix.version.v8 }}-macos-
-
-      - name: Build v8dasm
-        run: |
-          chmod +x scripts/v8dasm-builders/build-macos-arm.sh
-          scripts/v8dasm-builders/build-macos-arm.sh ${{ matrix.version.v8 }} "${{ matrix.version.args }}"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: v8dasm-macos-arm64-v${{ matrix.version.v8 }}
-          path: ~/v8/v8/v8dasm-${{ matrix.version.v8 }}
-          retention-days: 30
-
   build-windows:
     name: Windows x64 - V8 ${{ matrix.version.v8 }}
     runs-on: windows-2022
@@ -134,9 +90,8 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build-macos-arm, build-windows]
-    # Windows 产物优先；macOS 失败时仍发布已成功的 artifact
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build-windows.result == 'success'
+    needs: [build-windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build-windows.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -155,7 +110,6 @@ jobs:
             version=$(echo $dir | grep -oP 'v\K[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+')
 
             cd $dir
-            # 查找带版本号的文件
             if [ -f v8dasm-${version}.exe ]; then
               zip ../../release/${platform}-${version}.zip v8dasm-${version}.exe
             elif [ -f v8dasm-${version} ]; then
@@ -169,24 +123,19 @@ jobs:
           cat > release_notes.md << 'EOF'
           ## V8 Disassembler 二进制文件
 
-          此版本包含多个平台和 V8 版本的预编译 v8dasm 二进制文件。
-
           ### 支持的 V8 版本:
           - **12.4.254.21** (Node.js v22.21.1)
 
           ### 支持的平台:
-          - macOS Apple Silicon (ARM64)
           - Windows x64
 
           ### 使用方法:
-          下载适合您平台和 V8 版本的二进制文件，然后配合 View8 使用:
           ```bash
-          python view8.py input.jsc output.js --path ./v8dasm
+          python view8.py input.jsc output.js --path ./v8dasm-12.4.254.21.exe
           ```
 
           ### 构建信息:
           - 构建自 commit: ${{ github.sha }}
-          - 构建时间: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           EOF
 
       - name: Create Release
