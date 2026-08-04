@@ -122,23 +122,39 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM 编译 v8dasm
+REM 编译 v8dasm（Windows 必须用 clang-cl + MSVC 风格链接，不能用 clang++ -l）
 echo =====[ Compiling v8dasm ]=====
 set DASM_SOURCE=%WORKSPACE_DIR%\Disassembler\v8dasm.cpp
 set OUTPUT_NAME=v8dasm-%V8_VERSION%.exe
+set CLANG_CL=%V8_DIR%\third_party\llvm-build\Release+Asserts\bin\clang-cl.exe
 
-clang++ "%DASM_SOURCE%" ^
-    -std=c++20 ^
-    -O2 ^
-    -I. ^
-    -Iinclude ^
-    -Lout.gn\x64.release\obj ^
-    -lv8_libbase ^
-    -lv8_libplatform ^
-    -lv8_monolith ^
-    -o "%OUTPUT_NAME%"
+if not exist "%CLANG_CL%" (
+  where clang-cl >nul 2>&1
+  if errorlevel 1 (
+    echo ERROR: clang-cl not found
+    exit /b 1
+  )
+  set CLANG_CL=clang-cl
+)
+
+if not exist "out.gn\x64.release\obj\v8_monolith.lib" (
+  echo ERROR: missing out.gn\x64.release\obj\v8_monolith.lib
+  exit /b 1
+)
+
+echo Using compiler: %CLANG_CL%
+"%CLANG_CL%" /nologo /O2 /std:c++20 /EHsc /MT /DUNICODE /D_UNICODE ^
+  /I. /Iinclude ^
+  /Fe"%OUTPUT_NAME%" ^
+  "%DASM_SOURCE%" ^
+  /link /NOLOGO /SUBSYSTEM:CONSOLE ^
+  /LIBPATH:out.gn\x64.release\obj ^
+  v8_monolith.lib ^
+  v8_libbase.lib ^
+  v8_libplatform.lib ^
+  winmm.lib dbghelp.lib advapi32.lib user32.lib shell32.lib ole32.lib
 if errorlevel 1 (
-  echo ERROR: clang++ v8dasm failed
+  echo ERROR: clang-cl link of v8dasm failed
   exit /b 1
 )
 
