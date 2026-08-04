@@ -95,20 +95,30 @@ echo Patch applied successfully
 if exist "%PATCH_LOG%" type "%PATCH_LOG%"
 
 
-REM 配置构建
+REM 配置构建（写 args.gn，避免 cmd 对 = 号/引号解析翻车）
 echo =====[ Configuring V8 Build ]=====
-REM 构建 GN 参数字符串
-set GN_ARGS=target_os=\"win\" target_cpu=\"x64\" is_component_build=false is_debug=false use_custom_libcxx=false v8_monolithic=true v8_static_library=true v8_enable_disassembler=true v8_enable_object_print=true v8_use_external_startup_data=false dcheck_always_on=false symbol_level=0 is_clang=true
+if not exist out.gn\x64.release mkdir out.gn\x64.release
 
-REM 如果有额外的构建参数，追加
-if not "%BUILD_ARGS%"=="" (
-    set GN_ARGS=%GN_ARGS% %BUILD_ARGS%
-)
+> out.gn\x64.release\args.gn echo target_os = "win"
+>> out.gn\x64.release\args.gn echo target_cpu = "x64"
+>> out.gn\x64.release\args.gn echo is_component_build = false
+>> out.gn\x64.release\args.gn echo is_debug = false
+>> out.gn\x64.release\args.gn echo use_custom_libcxx = false
+>> out.gn\x64.release\args.gn echo v8_monolithic = true
+>> out.gn\x64.release\args.gn echo v8_static_library = true
+>> out.gn\x64.release\args.gn echo v8_enable_disassembler = true
+>> out.gn\x64.release\args.gn echo v8_enable_object_print = true
+>> out.gn\x64.release\args.gn echo v8_use_external_startup_data = false
+>> out.gn\x64.release\args.gn echo dcheck_always_on = false
+>> out.gn\x64.release\args.gn echo symbol_level = 0
+>> out.gn\x64.release\args.gn echo is_clang = true
+>> out.gn\x64.release\args.gn echo v8_enable_pointer_compression = false
 
-echo GN Args: %GN_ARGS%
+echo --- args.gn ---
+type out.gn\x64.release\args.gn
+echo ---------------
 
-REM 直接使用 gn gen 生成构建配置
-call gn gen out.gn\x64.release --args="%GN_ARGS%"
+call gn gen out.gn\x64.release
 
 REM 构建 V8 静态库
 echo =====[ Building V8 Monolith ]=====
@@ -119,7 +129,7 @@ echo =====[ Compiling v8dasm ]=====
 set DASM_SOURCE=%WORKSPACE_DIR%\Disassembler\v8dasm.cpp
 set OUTPUT_NAME=v8dasm-%V8_VERSION%.exe
 
-clang++ %DASM_SOURCE% ^
+clang++ "%DASM_SOURCE%" ^
     -std=c++20 ^
     -O2 ^
     -Iinclude ^
@@ -127,15 +137,13 @@ clang++ %DASM_SOURCE% ^
     -lv8_libbase ^
     -lv8_libplatform ^
     -lv8_monolith ^
-    -o %OUTPUT_NAME%
+    -o "%OUTPUT_NAME%"
 
 REM 验证编译
-if exist %OUTPUT_NAME% (
+if exist "%OUTPUT_NAME%" (
     echo =====[ Build Successful ]=====
-    dir %OUTPUT_NAME%
-    echo.
-    echo ✅ 编译完成: %OUTPUT_NAME%
-    echo    位置: %CD%\%OUTPUT_NAME%
+    dir "%OUTPUT_NAME%"
+    echo Build output: %CD%\%OUTPUT_NAME%
 ) else (
     echo ERROR: %OUTPUT_NAME% not found!
     exit /b 1
