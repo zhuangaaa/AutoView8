@@ -72,25 +72,27 @@ call git fetch --all --tags
 call git checkout %V8_VERSION%
 call gclient sync
 
-REM 应用补丁（使用多级退避策略）
-echo =====[ Applying v8.patch ]=====
-set PATCH_FILE=%WORKSPACE_DIR%\Disassembler\v8.patch
+REM Apply View8 patches via Python semantic rewriter (no git reset; tree is clean post-checkout)
+echo =====[ Applying semantic V8 patches ]=====
 set PATCH_LOG=%WORKSPACE_DIR%\scripts\v8dasm-builders\patch-utils\patch-state.log
+set SEMANTIC_SCRIPT=%WORKSPACE_DIR%\scripts\v8dasm-builders\patch-utils\semantic-patches.py
 
-REM 调用统一的 patch 应用脚本
-call "%WORKSPACE_DIR%\scripts\v8dasm-builders\patch-utils\apply-patch.cmd" ^
-    "%PATCH_FILE%" ^
-    "%V8_DIR%" ^
-    "%PATCH_LOG%" ^
-    "true"
-
-if %errorlevel% neq 0 (
-    echo ❌ Patch application failed. Build aborted.
-    echo 请检查日志文件: %PATCH_LOG%
-    exit /b 1
+where python >nul 2>&1
+if errorlevel 1 (
+  echo ERROR: python not found
+  exit /b 1
 )
 
-echo ✅ Patch applied successfully
+echo Running: python "%SEMANTIC_SCRIPT%" "%V8_DIR%" "%PATCH_LOG%"
+python "%SEMANTIC_SCRIPT%" "%V8_DIR%" "%PATCH_LOG%"
+if errorlevel 1 (
+  echo Patch application failed. See %PATCH_LOG%
+  type "%PATCH_LOG%"
+  exit /b 1
+)
+
+echo Patch applied successfully
+if exist "%PATCH_LOG%" type "%PATCH_LOG%"
 
 
 REM 配置构建

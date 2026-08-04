@@ -22,7 +22,8 @@ class SemanticPatcher:
         self.fail = 0
 
     def log(self, msg: str) -> None:
-        print(msg)
+        print(msg, flush=True)
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
         with self.log_file.open("a", encoding="utf-8") as f:
             f.write(msg + NL)
 
