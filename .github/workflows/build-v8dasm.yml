@@ -60,9 +60,11 @@ jobs:
       - name: Cache V8 Source
         uses: actions/cache@v4
         with:
-          path: ~/v8
-          key: v8-source-${{ matrix.version.v8 }}-windows
+          path: ${{ github.workspace }}/v8
+          key: v8-source-${{ matrix.version.v8 }}-windows-ws
           restore-keys: |
+            v8-source-${{ matrix.version.v8 }}-windows-ws
+            v8-source-${{ matrix.version.v8 }}-windows
             v8-source-${{ matrix.version.v8 }}-
 
       - name: Build v8dasm
@@ -70,11 +72,11 @@ jobs:
         run: |
           call scripts\v8dasm-builders\build-windows.cmd ${{ matrix.version.v8 }} "${{ matrix.version.args }}"
 
-      # build-windows.cmd 把产物写到 %USERPROFILE%\v8\v8\，不在 workspace 内
+      # build-windows.cmd 把产物写到 %GITHUB_WORKSPACE%\v8\v8\
       - name: Copy artifact into workspace
         shell: pwsh
         run: |
-          $src = Join-Path $env:USERPROFILE "v8\v8\v8dasm-${{ matrix.version.v8 }}.exe"
+          $src = Join-Path $env:GITHUB_WORKSPACE "v8\v8\v8dasm-${{ matrix.version.v8 }}.exe"
           New-Item -ItemType Directory -Force -Path "v8dasm-out" | Out-Null
           if (-not (Test-Path $src)) { throw "Missing build output: $src" }
           Copy-Item $src "v8dasm-out\"

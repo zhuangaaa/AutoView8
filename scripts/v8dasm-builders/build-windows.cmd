@@ -30,7 +30,16 @@ git config --global user.email "v8dasm.builder@localhost"
 git config --global core.autocrlf false
 git config --global core.filemode false
 
-cd %HOMEPATH%
+REM Prefer USERPROFILE (HOMEPATH has no drive letter and breaks on Actions D: workspace)
+if not "%USERPROFILE%"=="" (
+  cd /d "%USERPROFILE%"
+) else (
+  cd /d "%HOMEDRIVE%%HOMEPATH%"
+)
+
+REM Keep a workspace-local copy path for artifact upload reliability
+set WORK_V8_ROOT=%WORKSPACE_DIR%\v8
+if not exist "%WORK_V8_ROOT%" mkdir "%WORK_V8_ROOT%"
 
 REM 获取 Depot Tools
 if not exist depot_tools (
@@ -44,9 +53,8 @@ set PATH=%CD%\depot_tools;%PATH%
 set DEPOT_TOOLS_WIN_TOOLCHAIN=0
 call gclient
 
-REM 创建工作目录
-if not exist v8 mkdir v8
-cd v8
+REM Fetch/build under workspace\v8 so paths are stable on Actions
+cd /d "%WORK_V8_ROOT%"
 
 REM 获取 V8 源码
 if not exist v8 (
