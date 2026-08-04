@@ -114,18 +114,29 @@ jobs:
         run: |
           call scripts\v8dasm-builders\build-windows.cmd ${{ matrix.version.v8 }} "${{ matrix.version.args }}"
 
+      # build-windows.cmd 把产物写到 %USERPROFILE%\v8\v8\，不在 workspace 内
+      - name: Copy artifact into workspace
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:USERPROFILE "v8\v8\v8dasm-${{ matrix.version.v8 }}.exe"
+          New-Item -ItemType Directory -Force -Path "v8dasm-out" | Out-Null
+          if (-not (Test-Path $src)) { throw "Missing build output: $src" }
+          Copy-Item $src "v8dasm-out\"
+          Get-ChildItem "v8dasm-out"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: v8dasm-windows-x64-v${{ matrix.version.v8 }}
-          path: v8/v8/v8dasm-${{ matrix.version.v8 }}.exe
+          path: v8dasm-out/v8dasm-${{ matrix.version.v8 }}.exe
           retention-days: 30
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [build-macos-arm, build-windows]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Windows 产物优先；macOS 失败时仍发布已成功的 artifact
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build-windows.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
@@ -161,7 +172,7 @@ jobs:
           此版本包含多个平台和 V8 版本的预编译 v8dasm 二进制文件。
 
           ### 支持的 V8 版本:
-          - **11.3.244.8** (Node.js v20.x)
+          - **12.4.254.21** (Node.js v22.21.1)
 
           ### 支持的平台:
           - macOS Apple Silicon (ARM64)
